@@ -6,25 +6,95 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow* window);
 
 unsigned initVertexShader();
-unsigned initFragmentShader();
+unsigned initFragmentShader(const char* fragmentShader);
 
 // Generic functions that show general flow
 void drawObjectVBO(unsigned VBO, unsigned shaderProgram, float* vertices, int verticesLength);
 void drawObjVAO(unsigned VAO, unsigned VBO, unsigned shaderProgram, float* vertices, int verticesLength);
 
-const char* vertexShaderSource = "#version 460 core\n"
-								 "layout (location = 0) in vec3 aPos;\n"
-								 "void main()\n"
-								 "{\n"
-								 "   gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);\n"
-								 "}\0";
+const char* vertexShaderSource = 
+								"#version 460 core\n"
+								"layout (location = 0) in vec3 aPos;\n"
+								"void main()\n"
+								"{\n"
+								"   gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);\n"
+								"}\0";
 
-const char* fragmentShaderSource = "#version 460 core\n"
-								   "out vec4 FragColor;\n"
-								   "void main()\n"
-								   "{\n"
-								   "	FragColor = vec4(1.0f, 0.5f, 0.2f, 1.0f);\n"
-								   "}\0";
+const char* fragmentShaderSourceOrnage = 
+										"#version 460 core\n"
+									    "out vec4 FragColor;\n"
+								        "void main()\n"
+								        "{\n"
+								        "	FragColor = vec4(1.0f, 0.5f, 0.2f, 1.0f);\n"
+								        "}\0";
+
+const char* fragmentShaderSourcePurple = 
+										"#version 460 core\n"
+										"out vec4 FragColor;\n"
+										"void main()\n"
+										"{\n"
+										"	FragColor = vec4(0.5f, 0.0f, 0.5f, 1.0f);\n"
+										"}\0";
+
+struct vec3
+{
+	float x, y, z;
+};
+
+class Rectangle
+{
+public:
+	Rectangle(vec3 upRight, vec3 bottomRight, vec3 bottomLeft, vec3 upLeft)
+	{
+		float vertices[12] =
+		{
+			upRight.x, upRight.y, upRight.z,
+			bottomRight.x, bottomRight.y, bottomRight.z,
+			bottomLeft.x, bottomLeft.y, bottomLeft.z,
+			upLeft.x, upLeft.y, upLeft.z
+		};
+
+		unsigned indices[6] =
+		{
+			0, 1, 3,
+			1, 2, 3
+		};
+
+		glGenVertexArrays(1, &VAO);
+		glGenBuffers(1, &VBO);
+		glBindVertexArray(VAO);
+		glGenBuffers(1, &EBO);
+		 
+		// Put vertices on the gpu
+		glBindBuffer(GL_ARRAY_BUFFER, VBO);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+		// Put the indices on the gpu
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+		glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+
+		// Inform openGL on how to read the vetex's
+		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)nullptr);
+		glEnableVertexAttribArray(0);
+	}
+
+	~Rectangle()
+	{
+		glDeleteVertexArrays(1, &VAO);
+		glDeleteBuffers(1, &VBO);
+	}
+	void draw(unsigned shaderProgram)
+	{
+		glUseProgram(shaderProgram);
+		glBindVertexArray(VAO);
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+	}
+
+
+private:
+	unsigned VAO, VBO, EBO;
+};
+
 
 int main(int argc, char** argv)
 {
@@ -54,7 +124,7 @@ int main(int argc, char** argv)
 	}
 
 	// Tell openGL size of the window
-	glViewport(0, 0, 800, 600);
+	glViewport(0, 0, 800, 800);
 	glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
 	//--------------------------------------------------------------------
@@ -62,58 +132,60 @@ int main(int argc, char** argv)
 
 	// Compile shaders
 	unsigned vertexShader = initVertexShader();
-	unsigned fragmentShader = initFragmentShader();
+	unsigned fragmentShaderOrange = initFragmentShader(fragmentShaderSourceOrnage);
+	unsigned fragmentShaderPurple = initFragmentShader(fragmentShaderSourcePurple);
 
 	// Link the shaders
-	unsigned shaderProgram;
-	shaderProgram = glCreateProgram();
+	unsigned shaderProgramOrnage;
+	shaderProgramOrnage = glCreateProgram();
 
-	glAttachShader(shaderProgram, vertexShader);
-	glAttachShader(shaderProgram, fragmentShader);
-	glLinkProgram(shaderProgram);
+	glAttachShader(shaderProgramOrnage, vertexShader);
+	glAttachShader(shaderProgramOrnage, fragmentShaderOrange);
+	glLinkProgram(shaderProgramOrnage);
 
 	int success;
-	glGetProgramiv(shaderProgram, GL_LINK_STATUS, &success);
+	glGetProgramiv(shaderProgramOrnage, GL_LINK_STATUS, &success);
 	if (!success)
 	{
 		char infoLog[512];
-		glGetProgramInfoLog(shaderProgram, 512, nullptr, infoLog);
+		glGetProgramInfoLog(shaderProgramOrnage, 512, nullptr, infoLog);
 		std::cout << "ERROR::SHADER::LINKING_FAILED\n" << infoLog << std::endl;
 	}
 
-	// Everything will now use this shader program
-	glUseProgram(shaderProgram);
+	unsigned shaderProgramPurple;
+	shaderProgramPurple = glCreateProgram();
+
+	glAttachShader(shaderProgramPurple, vertexShader);
+	glAttachShader(shaderProgramPurple, fragmentShaderPurple);
+	glLinkProgram(shaderProgramPurple);
+
+	glGetProgramiv(shaderProgramPurple, GL_LINK_STATUS, &success);
+	if (!success)
+	{
+		char infoLog[512];
+		glGetProgramInfoLog(shaderProgramPurple, 512, nullptr, infoLog);
+		std::cout << "ERROR::SHADER::LINKING_FAILED\n" << infoLog << std::endl;
+	}
 
 	// No longer need the shaders in local memory
 	glDeleteShader(vertexShader);
-	glDeleteShader(fragmentShader);
+	glDeleteShader(fragmentShaderOrange);
+	glDeleteShader(fragmentShaderPurple);
 
 	//--------------------------------------------------------------------
 	// Load vertex to the gpu
 
-	float vertices[] = {
-	-0.5f, -0.5f, 0.0f,
-	0.5f, -0.5f, 0.0f,
-	0.0f,  0.5f, 0.0f
-	};
+	Rectangle tangle(
+		vec3{ 0.5f,  0.5f, 0.0f }, 
+		vec3{ 0.5f, -0.5f, 0.0f }, 
+		vec3{ -0.5f, -0.5f, 0.0f }, 
+		vec3{ -0.5f,  0.5f, 0.0f });
 
-	// Create a vertex buffer
-	unsigned VBO, VAO;
-	glGenVertexArrays(1, &VAO);
-	glGenBuffers(1, &VBO);
-	glBindVertexArray(VAO);
-
-	// Put vertices on the gpu
-	glBindBuffer(GL_ARRAY_BUFFER, VBO);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-	
-	// Inform openGL on how to read the vetex's
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)nullptr);
-	glEnableVertexAttribArray(0);
-
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-	glBindVertexArray(0);
+	Rectangle tangle2(
+		vec3{ 1.0f,  1.0f, 0.0f },
+		vec3{ 1.0f, 0.5f, 0.0f },
+		vec3{ 0.5f, 0.5f, 0.0f },
+		vec3{ 0.5f,  1.0f, 0.0f });
 
 	// Main loop
 	while (!glfwWindowShouldClose(window))
@@ -124,18 +196,16 @@ int main(int argc, char** argv)
 		glClear(GL_COLOR_BUFFER_BIT);
 
 		// Draw a triagnle
-		glUseProgram(shaderProgram);
-		glBindVertexArray(VAO);
-		glDrawArrays(GL_TRIANGLES, 0, 3);
+		tangle.draw(shaderProgramOrnage);
+		tangle2.draw(shaderProgramPurple);
 
 		glfwSwapBuffers(window);
 		glfwPollEvents();
 	}
 
 	// Delete buffers
-	glDeleteVertexArrays(1, &VAO);
-	glDeleteBuffers(1, &VBO);
-	glDeleteProgram(shaderProgram);
+	glDeleteProgram(shaderProgramOrnage);
+	glDeleteProgram(shaderProgramPurple);
 
 	glfwTerminate();
 
@@ -177,11 +247,11 @@ unsigned initVertexShader()
 	return vertexShader;
 }
 
-unsigned initFragmentShader()
+unsigned initFragmentShader(const char* fragmentShaderSoruce)
 {
 	unsigned fragmentShader;
 	fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-	glShaderSource(fragmentShader, 1, &fragmentShaderSource, nullptr);
+	glShaderSource(fragmentShader, 1, &fragmentShaderSoruce, nullptr);
 	glCompileShader(fragmentShader);
 
 	int success;

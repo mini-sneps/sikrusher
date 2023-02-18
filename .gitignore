@@ -10,6 +10,9 @@
 
 # production
 /build
+/SikrusherPrototype/.vs
+/SikrusherPrototype/enc_temp_folder
+/SikrusherPrototype/x64
 
 # misc
 .DS_Store
